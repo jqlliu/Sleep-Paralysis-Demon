@@ -2,13 +2,15 @@ from typing import Final, Dict
 import os
 from dotenv import load_dotenv
 from discord import Intents, Client, Message
-
+from discord.ext import tasks
 from person import Person
 import time
 import threading
 
 import openpyxl 
 import random
+
+#import asyncio
 
 
 days_cell: str = "M1"
@@ -24,12 +26,13 @@ users: Dict[str, Person] = {
 day: int = record[ days_cell ].value
 
 #Load info
-print(day)
-for v in users.values():
-    v.points = record[ chr(v.column + ord('A') - 1) + str(day + 5) ].value
-    v.lates = record[ chr(v.column + ord('A') - 1) + "2" ].value
-    v.last_late = True if record[ chr(v.column + ord('A') - 1) + "3" ].value == 1 else False
+def load_points(day: int):
+    for v in users.values():
+        v.points = int(record[ chr(v.column + ord('A') - 1) + str(day + 5) ].value)
+        v.lates = int(record[ chr(v.column + ord('A') - 1) + "2" ].value)
+        v.last_late = True if int(record[ chr(v.column + ord('A') - 1) + "3" ].value) == 1 else False
 
+load_points(day)
 #initial setup
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
@@ -39,12 +42,12 @@ intents.message_content = True
 client: Client = Client(intents=intents)
 
 #responces
-
+print("Start")
 night_crawler: int = ((0 + 4) * 60 * 60 + 45 * 60)% 86400
-four_am: int = ((4 + 4) * 60 * 60 )% 86400
+four_am: int = ((4 + 4) * 60 * 60)% 86400
 interval: int = 30 * 60
-
 done: int = 0
+
 def get_response(input: str, message: Message) -> str:
     name: str = message.author.name
     input = str.lower(input)
@@ -58,19 +61,26 @@ def get_response(input: str, message: Message) -> str:
                 min = v.points
         #Gning
         if input == "gn" and user.today == -10:
-            user.today = done
+            s = ""
+            user.today = int(done)
             done += 1
+            s += name + " was #" + str(done) + "!\n"
             #Night crawler
             if seconds > night_crawler and seconds < four_am and not user.late:
-                user.today += int((seconds - night_crawler)/(interval)) + 1
+                a = int((seconds - night_crawler)/(interval)) + 1
+                user.today += a
+                s += "Night crawler attacked for " + str(int((seconds - night_crawler)/(interval)) + 1) + "points!\n"
             #Symphony
             if user.points >= min + 20 and (done == 1 or done == 2):
                 user.today -= 1
+                s += "Symphony kicked in! -1 point\n"
             #Requium
             if user.points >= min + 15 and done == 1:
                 user.today -= 1
-            
-            return name + " has slept with " + str(user.today) + " points"
+                s += "Requium kicked in! -1 point\n"
+            s = name + " has slept with " + str(user.today) + " points!\n" + s
+            return s
+
         if input == "gn" and user.today != -10:
             return "You already gn'd fool"
         #Late ticket
@@ -79,31 +89,38 @@ def get_response(input: str, message: Message) -> str:
             return name + " uses a saving grace. Night crawlers will not affect them"
         
         #Fill in time for yesterday
-        if input[:5] == "fill" and user.last_late:
+        if input[:4] == "fill" and user.last_late:
             t = input[5:]
-            if str.isdigit(t[4:6]) and str.isdigit(t[7:9]):
-                t1 = int(t[4:6])
-                t2 = int(t[7:9])
-                a = 0
-                if t1 >= 1 and t1 < 4:
-                    a += 2 * t1
-                    a += t2 > 30 and 1 or 0
-                else:
-                    a = 6
-                a -= 1
+            if str.isdigit(t[0:2]) and str.isdigit(t[3:5]):
+                t1 = (int(t[0:2]) * 60 * 60 + int(t[3:5])*60)
+                a = -6
+                if t1 > night_crawler and t1 < four_am:
+                    a += int((t1 - night_crawler)/interval) + 1
                 user.last_late = False
-                record[ chr(v.column + ord('A') - 1) + str(day + 4) ] = user.points - a
-                record[ chr(v.column + ord('A') - 1) + "2" ] = user.lates
-                record[ chr(v.column + ord('A') - 1) + "3" ] = user.last_late and 1 or 0
+                record[ chr(user.column + ord('A') - 1) + str(day + 5) ] = user.points + a
+                user.points = user.points + a
+                record[ chr(user.column + ord('A') - 1) + "3" ] = 0
                 file.save("record.xlsx")
                 return name + " has signaled their correct sleep time. Their points was adjusted"
-       
+        if input[:4] == "fill" and not user.last_late:
+            return "You wern't late last night. Go drink sulfuric acid"
         #List stats
         if input == "stats":
             r = ""
             for v in users.values():
                 r += v.name + ": " + str(v.points) + " pts and " + str(v.lates) + " saving graces"   +"!\n" 
             return r
+        #Make exception
+        if input[:6] == "except":
+            t = input[7:]
+            t = t.split(" ")
+            if len(t) == 2 and (str.isdigit(t[1]) or str.isdigit(t[1][1:]) and t[1][0] == "-") and users[t[0]]:
+                n: str = t[0]
+                p: int = int(t[1])
+                users[n].points += p
+                return n + " has been executed (I mean excepted) by " + name + " for " + str(p) + " points! "
+            else:
+                return "Wrong parameters bozo"
 
         return "BAHH WHAT HAPPENED SOMETHIGN ERORRE D AHHHH"
 
@@ -117,13 +134,14 @@ def deleted(input: str, message: Message) -> str:
         if input == ";gn" and user.today != -10:
             user.today = -10
             done -= 1
-            return name + " revoked their gn!"
+            return name + " revoked their gn! That fool. "
     return "You have killed me"
 
 #message handling
 async def send_message(message: Message, user_message: str) -> None:
     if not user_message:
         print("ERROR: NO MESSAGE") 
+        return
     if is_private := user_message[0] == '?':
         user_message = user_message[1:]
     try:
@@ -136,7 +154,7 @@ async def send_message(message: Message, user_message: str) -> None:
         print(e)
 
 async def send(message: str)-> None :
-    client.get_channel(1260219510292611082).send(str)
+    await client.get_channel(1260219510292611082).send(message)
 
 async def delete_message(message: Message, user_message: str) -> None:
     if not user_message:
@@ -156,10 +174,13 @@ async def delete_message(message: Message, user_message: str) -> None:
 @client.event
 async def on_ready() -> None:
     print(f'{client.user} started')
+    timer.start()
 
 @client.event
 async def on_message(message: Message) -> None:
     if message.author == client.user:
+        return
+    if message == None or len(message.content) == 0:
         return
     username: str = str(message.author)
     user_message: str = message.content
@@ -181,30 +202,40 @@ async def on_message_delete(message: Message) -> None:
 updated = False
 nighted = False
 def update_charts() -> None:
+    print("updating")
+    global updated
+    global day
+    global done
     if not updated:
         updated = True
         day += 1
+        
+        done = 0
         for v in users.values():
             if v.today == -10:
-                v.points + 10
+                v.points += 10
+                v.last_late = True
             else:
-                v.points + v.today
-            v.lates = v.lates - v.late and 1 or 0
+                v.points += v.today
+            v.lates = v.lates - (v.late and 1 or 0)
             record[ chr(v.column + ord('A') - 1) + str(day + 5) ] = v.points
             record[ chr(v.column + ord('A') - 1) + "2" ] = v.lates
             record[ chr(v.column + ord('A') - 1) + "3" ] = v.last_late and 1 or 0
-
+            record[ days_cell ] = day
         file.save("record.xlsx")
         for v in users.values():
             v.today = -10
             v.late = False
+        print("update successful")
     
 def reset_charts() -> None:
+    global nighted
+    global updated
     updated = False
     nighted = False
-    done = 0
 
 async def warn_night() -> None:
+    global nighted
     if not nighted:
         nighted = True
         try:
@@ -216,24 +247,22 @@ async def funny() -> None:
         try:
             await send("BANANA")
         except Exception as e:
-            print("ERROR")
-
-def timer() -> None:
-    while True:
-        if int(time.time()) % 86400 == ((4 + 4) * 60 * 60)% 86400 :
-            update_charts()
-        elif int(time.time()) % 86400 == night_crawler - 10 * 60:
-            warn_night()
-        else:
-            reset_charts()
-        if random.randint(0, 300000) == 3:
-            funny()
-        time.sleep(0.5)
+            print(e)
+@tasks.loop(seconds = 0.5)
+async def timer():
+    if int(time.time()) % 86400 > four_am and int(time.time()) % 86400 < four_am + 10 :
+        update_charts()
+    elif int(time.time()) % 86400 == night_crawler - 10 * 60:
+        await warn_night()
+    else:
+        reset_charts()
+    if random.randint(0, 300000) == 3:
+        await funny()
 
 
-timer_thread = threading.Thread(target=timer)
-timer_thread.start()
-
+#timer_thread = threading.Thread(target=wrap_timer)
+#timer_thread.start()
+#asyncio.run(timer())
 def main() -> None:
     client.run(token = TOKEN)
     
