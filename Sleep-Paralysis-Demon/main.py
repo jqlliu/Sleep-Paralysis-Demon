@@ -47,6 +47,7 @@ night_crawler: int = ((0 + 4) * 60 * 60 + 45 * 60)% 86400
 four_am: int = ((4 + 4) * 60 * 60)% 86400
 interval: int = 30 * 60
 done: int = 0
+stalk_time: int = 60*90
 
 def get_response(input: str, message: Message) -> str:
     name: str = message.author.name
@@ -66,10 +67,14 @@ def get_response(input: str, message: Message) -> str:
             done += 1
             s += name + " was #" + str(done) + "!\n"
             #Night crawler
-            if seconds > night_crawler and seconds < four_am and not user.late:
+            if seconds >= night_crawler and seconds < four_am and not user.late:
                 a = int((seconds - night_crawler)/(interval)) + 1
                 user.today += a
-                s += "Night crawler attacked for " + str(int((seconds - night_crawler)/(interval)) + 1) + "points!\n"
+                s += "Night crawler attacked for " + str(int((seconds - night_crawler)/(interval)) + 1) + " points!\n"
+            #Night stalker
+            if user.stalked and (seconds >= night_crawler - stalk_time or seconds < four_am or not user.hide ) and not user.late:
+                user.today += 1
+                s += "Night stalker attacked for 1 point!\n"
             #Symphony
             if user.points >= min + 20 and (done == 1 or done == 2):
                 user.today -= 1
@@ -83,29 +88,55 @@ def get_response(input: str, message: Message) -> str:
 
         if input == "gn" and user.today != -10:
             return "You already gn'd fool"
+        
+        if input == "hide" and user.hide == False and seconds < night_crawler - stalk_time and seconds > four_am and user.stalked:
+            user.hide = True
+            return user.name + " has hidden from the night stalker. They are getting ready for bed"
+        
+        if input == "hide" and user.hide == False and (seconds >= night_crawler - stalk_time or seconds <= four_am) and user.stalked:
+            user.hide = True
+            return user.name + " tried to hide. IT'S TOO LATE!"
+        
+        if input == "hide" and not user.stalked:
+            return "Dumb piece of warm pillow, you aren't being stalked!"
+        
+        if input == "hide" and user.hide == True:
+            user.hide = False
+            return user.name + " will face the night stalker instead!"
+
         #Late ticket
         if input == "late":
             user.late = True
             return name + " uses a saving grace. Night crawlers will not affect them"
-        
+        #Stalk
+        if input == "stalk":
+            user.stalked = not user.stalked
+            if user.stalked:
+                return name + " is being stalked during night! "
+            else:
+                return name + "'s trail is cold..."
+            
         #Fill in time for yesterday
         if input[:4] == "fill" and user.last_late:
             t = input[5:]
             if str.isdigit(t[0:2]) and str.isdigit(t[3:5]):
                 t1 = (int(t[0:2]) * 60 * 60 + int(t[3:5])*60)
                 a = -6
-                if t1 > night_crawler and t1 < four_am:
+                if t1 >= night_crawler and t1 < four_am:
                     a += int((t1 - night_crawler)/interval) + 1
+
+                if user.stalked and t1 >= night_crawler - stalk_time and t1 < four_am or not user.stalked:
+                    a += 1
                 user.last_late = False
                 record[ chr(user.column + ord('A') - 1) + str(day + 5) ] = user.points + a
                 user.points = user.points + a
                 record[ chr(user.column + ord('A') - 1) + "3" ] = 0
                 file.save("record.xlsx")
-                return name + " has signaled their correct sleep time. Their points was adjusted"
+                return name + " has signaled their correct sleep time. Their points was adjusted by " + str(a);
         if input[:4] == "fill" and not user.last_late:
             return "You wern't late last night. Go drink sulfuric acid"
         #List stats
-        if input == "stats":
+        if input == "stats" or input == "stat":
             r = ""
             for v in users.values():
                 r += v.name + ": " + str(v.points) + " pts and " + str(v.lates) + " saving graces"   +"!\n" 
@@ -121,7 +152,15 @@ def get_response(input: str, message: Message) -> str:
                 return n + " has been executed (I mean excepted) by " + name + " for " + str(p) + " points! "
             else:
                 return "Wrong parameters bozo"
-
+        #change crawler time
+        if input[:5] == "crawl":
+            t = input[6:]
+            t1 = t.split(":")
+            if len(t1) == 2 and str.isdigit(t1[0]) and str.isdigit(t1[1]):
+                t1 = (int(t1[0]) * 60 * 60 + int(t1[1])*60)%86400
+                return "DANGER: Night crawlers now attack at " + t + ". Prepare thyself!"
+            else:
+                return "STINKY"
         return "BAHH WHAT HAPPENED SOMETHIGN ERORRE D AHHHH"
 
 def deleted(input: str, message: Message) -> str:
@@ -213,8 +252,9 @@ def update_charts() -> None:
         done = 0
         for v in users.values():
             if v.today == -10:
-                v.points += 10
+                v.points += 11
                 v.last_late = True
+                v.hide = False
             else:
                 v.points += v.today
             v.lates = v.lates - (v.late and 1 or 0)
@@ -239,13 +279,32 @@ async def warn_night() -> None:
     if not nighted:
         nighted = True
         try:
-            await send("NIGHT CRAWLERS HERE IN 10 MINUTE. HIDE WHILE YOU STILL CAN")
+            s = "NIGHT CRAWLERS HERE IN 10 MINUTE. GET AWAY TO SAFETY:"
+            for i, v in users.items():
+                if v.today == -10:
+                    s += " " + client.get_guild(1171158336864010330).get_member_named(v.name).mention
+            await send(s)
         except Exception as e:
             print("ERROR")
 
+async def warn_stalk() -> None:
+    global nighted
+    if not nighted:
+        nighted = True
+        try:
+            s = "NIGHT STALKERS HERE. HIDE. NOW:"
+            for i, v in users.items():
+                if ( v.today == -10 or not v.ready ) and v.stalked :
+                    s += " " + client.get_guild(1171158336864010330).get_member_named(v.name).mention
+            await send(s)
+        except Exception as e:
+            print("ERROR")
+
+funnies = ["BANANA", "LEMON", "You have 5 days left to live"]
+
 async def funny() -> None:
         try:
-            await send("BANANA")
+            await send(funnies[random.randint(1, len(funnies))])
         except Exception as e:
             print(e)
 @tasks.loop(seconds = 0.5)
@@ -254,6 +313,8 @@ async def timer():
         update_charts()
     elif int(time.time()) % 86400 == night_crawler - 10 * 60:
         await warn_night()
+    elif int(time.time()) % 86400 == night_crawler - stalk_time - 5 * 60:
+        await warn_stalk()
     else:
         reset_charts()
     if random.randint(0, 300000) == 3:

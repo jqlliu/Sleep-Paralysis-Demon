@@ -6,6 +6,8 @@ class Person:
     points:int = 0
     lates:int = 0
     last_late:bool = False
+    stalked: bool = False
+    hide: bool = False
     def __init__(self, name: str, column: int) -> None:
         self.name = name
         self.column = column
