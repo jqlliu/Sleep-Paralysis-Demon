@@ -72,7 +72,7 @@ def get_response(input: str, message: Message) -> str:
                 user.today += a
                 s += "Night crawler attacked for " + str(int((seconds - night_crawler)/(interval)) + 1) + " points!\n"
             #Night stalker
-            if user.stalked and (seconds >= night_crawler - stalk_time or seconds < four_am or not user.hide ) and not user.late:
+            if user.stalked and seconds >= night_crawler - stalk_time and seconds < four_am and not user.hide  and not user.late:
                 user.today += 1
                 s += "Night stalker attacked for 1 point!\n"
             #Symphony
@@ -89,11 +89,11 @@ def get_response(input: str, message: Message) -> str:
         if input == "gn" and user.today != -10:
             return "You already gn'd fool"
         
-        if input == "hide" and user.hide == False and seconds < night_crawler - stalk_time and seconds > four_am and user.stalked:
+        if input == "hide" and user.hide == False and ( seconds < (night_crawler - stalk_time) % 86400 or seconds > four_am ) and user.stalked:
             user.hide = True
             return user.name + " has hidden from the night stalker. They are getting ready for bed"
         
-        if input == "hide" and user.hide == False and (seconds >= night_crawler - stalk_time or seconds <= four_am) and user.stalked:
+        if input == "hide" and user.hide == False and (seconds >= (night_crawler - stalk_time) % 86400 and seconds <= four_am) and user.stalked:
             user.hide = True
             return user.name + " tried to hide. IT'S TOO LATE!"
         
@@ -120,7 +120,7 @@ def get_response(input: str, message: Message) -> str:
         if input[:4] == "fill" and user.last_late:
             t = input[5:]
             if str.isdigit(t[0:2]) and str.isdigit(t[3:5]):
-                t1 = (int(t[0:2]) * 60 * 60 + int(t[3:5])*60)
+                t1 = (int(t[0:2]) * 60 * 60 + int(t[3:5])*60) + 4 * 60
                 a = -6
                 if t1 >= night_crawler and t1 < four_am:
                     a += int((t1 - night_crawler)/interval) + 1
@@ -157,7 +157,7 @@ def get_response(input: str, message: Message) -> str:
             t = input[6:]
             t1 = t.split(":")
             if len(t1) == 2 and str.isdigit(t1[0]) and str.isdigit(t1[1]):
-                t1 = (int(t1[0]) * 60 * 60 + int(t1[1])*60)%86400
+                t1 = (int(t1[0] + 4) * 60 * 60 + int(t1[1])*60)%86400
                 return "DANGER: Night crawlers now attack at " + t + ". Prepare thyself!"
             else:
                 return "STINKY"
