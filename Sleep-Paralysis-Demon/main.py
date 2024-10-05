@@ -15,7 +15,7 @@ import socket
 host = "0.0.0.0"
 port = 4000
 try: 
-    socket.socket(socket.AF_INET, socket.SOCK_STREAM).bind((host, port))
+    socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
 except socket.error as message:
     print(message[1])
 
