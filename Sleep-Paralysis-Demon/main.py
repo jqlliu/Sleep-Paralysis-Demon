@@ -43,7 +43,7 @@ client: Client = Client(intents=intents)
 
 #responces
 print("Start")
-night_crawler: int = ((0 + 4) * 60 * 60 + 45 * 60)% 86400
+night_crawler: int = ((0 + 4) * 60 * 60 + 30 * 60)% 86400
 four_am: int = ((4 + 4) * 60 * 60)% 86400
 interval: int = 30 * 60
 done: int = 0
@@ -125,7 +125,7 @@ def get_response(input: str, message: Message) -> str:
                 if t1 >= night_crawler and t1 < four_am:
                     a += int((t1 - night_crawler)/interval) + 1
 
-                if user.stalked and t1 >= night_crawler - stalk_time and t1 < four_am or not user.stalked:
+                if user.stalked and t1 >= night_crawler - stalk_time and t1 < four_am:
                     a += 1
                 user.last_late = False
                 record[ chr(user.column + ord('A') - 1) + str(day + 5) ] = user.points + a
@@ -282,7 +282,8 @@ async def warn_night() -> None:
             s = "NIGHT CRAWLERS HERE IN 10 MINUTE. GET AWAY TO SAFETY:"
             for i, v in users.items():
                 if v.today == -10:
-                    s += " " + client.get_guild(1171158336864010330).get_member_named(v.name).mention
+                    a = client.get_guild(1171158336864010330).get_member_named(v.name).id
+                    s += " <@{a}>"
             await send(s)
         except Exception as e:
             print("ERROR")
