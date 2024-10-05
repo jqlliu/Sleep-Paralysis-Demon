@@ -13,9 +13,10 @@ import random
 import socket
 
 host = "0.0.0.0"
-port = 4000
+port = 8000
 soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try: 
+    print("LISTENING")
     soc.bind((host, port))
 except socket.error as message:
     print(message[1])
