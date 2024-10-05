@@ -10,6 +10,17 @@ import threading
 import openpyxl 
 import random
 
+import socket
+
+host = "0.0.0.0"
+port = 4000
+soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+try: 
+    soc.bind((host, port))
+except socket.error as message:
+    print(message[1])
+
+soc.listen(9)
 #import asyncio
 
 
