@@ -24,8 +24,7 @@ def acc():
         c, addr = soc.accept()     
         print ('Got connection from', addr )
 
-thread = threading.Thread(acc)
-thread.start()
+
 
 try: 
     print("LISTENING")
@@ -35,7 +34,8 @@ except socket.error as message:
 
 soc.listen(9)
 #import asyncio
-
+thread = threading.Thread(acc)
+thread.start()
 
 days_cell: str = "M1"
 file = openpyxl.load_workbook('record.xlsx')
