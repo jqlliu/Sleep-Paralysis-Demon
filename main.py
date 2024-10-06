@@ -34,7 +34,7 @@ except socket.error as message:
 
 soc.listen(5)
 #import asyncio
-thread = threading.Thread(acc)
+thread = threading.Thread(target=acc)
 thread.start()
 
 days_cell: str = "M1"
