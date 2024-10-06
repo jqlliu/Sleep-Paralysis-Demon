@@ -11,10 +11,22 @@ import openpyxl
 import random
 
 import socket
+import threading
 
 host = "0.0.0.0"
 port = 8000
 soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+
+def acc():
+    while True: 
+        # Establish connection with client. 
+        c, addr = soc.accept()     
+        print ('Got connection from', addr )
+
+thread = threading.Thread(acc)
+thread.start()
+
 try: 
     print("LISTENING")
     soc.bind((host, port))
