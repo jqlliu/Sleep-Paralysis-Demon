@@ -13,7 +13,7 @@ import random
 import socket
 import threading
 
-host = "0.0.0.0"
+host = ""
 port = 8000
 soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -30,9 +30,9 @@ try:
     print("LISTENING")
     soc.bind((host, port))
 except socket.error as message:
-    print(message[1])
+    print("ERR")
 
-soc.listen(9)
+soc.listen(5)
 #import asyncio
 thread = threading.Thread(acc)
 thread.start()
