@@ -213,7 +213,10 @@ async def send_message(message: Message, user_message: str) -> None:
         if not is_private:
             if user_message[0] == ";":
                 responses: str = get_response(user_message[1:], message)
-                await message.channel.send(responses)
+                if responses == "!!FILE!!":
+                    await message.channel.send(file=File(r"./record.xlsx"))
+                else:
+                    await message.channel.send(responses)
 
     except Exception as e:
         print(e)
@@ -230,10 +233,7 @@ async def delete_message(message: Message, user_message: str) -> None:
         if not is_private:
             if user_message[0] == ";":
                 responses: str = deleted(user_message, message)
-                if responses == "!!FILE!!":
-                    await message.channel.send(file=File(r"./record.xlsx"))
-                else:
-                    await message.channel.send(responses)
+                await message.channel.send(responses)
 
     except Exception as e:
         print(e)
@@ -310,8 +310,8 @@ async def warn_night() -> None:
             s = "NIGHT CRAWLERS HERE IN 10 MINUTE. GET AWAY TO SAFETY:"
             for i, v in users.items():
                 if v.today == -10:
-                    a = client.get_guild(1171158336864010330).get_member_named(v.name).id
-                    s += " <@{a}>"
+                    a = client.get_guild(1171158336864010330).get_member_named().mention
+                    s += " " + a
             await send(s)
         except Exception as e:
             print("ERROR")
@@ -324,7 +324,8 @@ async def warn_stalk() -> None:
             s = "NIGHT STALKERS HERE. HIDE. NOW:"
             for i, v in users.items():
                 if ( v.today == -10 or not v.ready ) and v.stalked :
-                    s += " <@" + client.get_guild(1171158336864010330).get_member_named(i) + ">"
+                    a = client.get_guild(1171158336864010330).get_member_named(i).mention
+                    s += " " + a
             await send(s)
         except Exception as e:
             print("ERROR")
