@@ -21,8 +21,7 @@ soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 def acc():
     while True: 
         # Establish connection with client. 
-        c, addr = soc.accept()     
-        print ('Got connection from', addr )
+        c, addr = soc.accept()
 
 
 
