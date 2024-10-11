@@ -1,7 +1,7 @@
 from typing import Final, Dict
 import os
 from dotenv import load_dotenv
-from discord import Intents, Client, Message
+from discord import Intents, Client, Message, File
 from discord.ext import tasks
 from person import Person
 import time
@@ -139,12 +139,15 @@ def get_response(input: str, message: Message) -> str:
                 return name + " is being stalked during night! "
             else:
                 return name + "'s trail is cold..."
-            
+        
+        if input == "file":
+            return "!!FILE!!"
+
         #Fill in time for yesterday
         if input[:4] == "fill" and user.last_late:
             t = input[5:]
             if str.isdigit(t[0:2]) and str.isdigit(t[3:5]):
-                t1 = (int(t[0:2]) * 60 * 60 + int(t[3:5])*60) + 4 * 60
+                t1 = (int(t[0:2]) * 60 * 60 + int(t[3:5])*60)
                 a = -6
                 if t1 >= night_crawler and t1 < four_am:
                     a += int((t1 - night_crawler)/interval) + 1
@@ -228,8 +231,10 @@ async def delete_message(message: Message, user_message: str) -> None:
         if not is_private:
             if user_message[0] == ";":
                 responses: str = deleted(user_message, message)
-                
-                await message.channel.send(responses)
+                if responses == "!!FILE!!":
+                    await message.channel.send(file=File(r"./record.xlsx"))
+                else:
+                    await message.channel.send(responses)
 
     except Exception as e:
         print(e)
@@ -320,7 +325,7 @@ async def warn_stalk() -> None:
             s = "NIGHT STALKERS HERE. HIDE. NOW:"
             for i, v in users.items():
                 if ( v.today == -10 or not v.ready ) and v.stalked :
-                    s += " " + client.get_guild(1171158336864010330).get_member_named(v.name).mention
+                    s += " <@" + client.get_guild(1171158336864010330).get_member_named(i) + ">"
             await send(s)
         except Exception as e:
             print("ERROR")
