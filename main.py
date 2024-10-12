@@ -39,6 +39,8 @@ thread.start()
 days_cell: str = "M1"
 file = openpyxl.load_workbook('record.xlsx')
 record = file.active
+blanks: int = 5
+
 users: Dict[str, Person] = {
     "hydrogenjack": Person("jack", 2),
     "beveornaut": Person("beaverly", 3),
@@ -51,9 +53,10 @@ day: int = record[ days_cell ].value
 #Load info
 def load_points(day: int):
     for v in users.values():
-        v.points = int(record[ chr(v.column + ord('A') - 1) + str(day + 5) ].value)
+        v.points = int(record[ chr(v.column + ord('A') - 1) + str(day + blanks) ].value)
         v.lates = int(record[ chr(v.column + ord('A') - 1) + "2" ].value)
         v.last_late = True if int(record[ chr(v.column + ord('A') - 1) + "3" ].value) == 1 else False
+        v.streak =  int(record[ chr(v.column + ord('A') - 1) + "4" ].value)
 
 load_points(day)
 #initial setup
@@ -80,9 +83,11 @@ def get_response(input: str, message: Message) -> str:
     global done
     if user != None:
         min:int = -1
+        two: int = -1
         for v in users.values():
-            if v.points < min or min == -1:
+            if v.points <= min or min == -1:
                 min = v.points
+                two = min
         #Gning
         if input == "gn" and user.today == -10:
             s = ""
@@ -92,8 +97,21 @@ def get_response(input: str, message: Message) -> str:
             #Night crawler
             if seconds >= night_crawler and seconds < four_am and not user.late:
                 a = int((seconds - night_crawler)/(interval)) + 1
-                user.today += a
-                s += "Night crawler attacked for " + str(int((seconds - night_crawler)/(interval)) + 1) + " points!\n"
+                m = 1
+                if user.points == min and two - min >= 5:
+                    m = 2
+                    s += "Night hunter hunts down first place for an extra " + str(a) + " points!\n"
+                user.today += a * m
+                s += "Night crawler attacked for " + str(a) + " points!\n"
+                if user.points >= min + 30:
+                    user.streak = 0
+            else:
+                if not user.late and user.points >= min + 30:
+                    if user.streak > 0:
+                        s += "Melody is among us! -" + str(user.streak) + " points!\n"
+                    a -= user.streak
+                    user.streak += 1
+
             #Night stalker
             if user.stalked and seconds >= night_crawler - stalk_time and seconds < four_am and not user.hide  and not user.late:
                 user.today += 1
@@ -102,6 +120,13 @@ def get_response(input: str, message: Message) -> str:
             if user.points >= min + 20 and (done == 1 or done == 2):
                 user.today -= 1
                 s += "Symphony kicked in! -1 point\n"
+            #Requium
+            if user.points >= min + 15 and done == 1:
+                user.today -= 1
+                s += "Requium is active! -1 point\n"
+            s = name + " has slept with " + str(user.today) + " points!\n" + s
+            
+
             #Requium
             if user.points >= min + 15 and done == 1:
                 user.today -= 1
@@ -154,7 +179,7 @@ def get_response(input: str, message: Message) -> str:
                 if user.stalked and t1 >= night_crawler - stalk_time and t1 < four_am:
                     a += 1
                 user.last_late = False
-                record[ chr(user.column + ord('A') - 1) + str(day + 5) ] = user.points + a
+                record[ chr(user.column + ord('A') - 1) + str(day + blanks) ] = user.points + a
                 user.points = user.points + a
                 record[ chr(user.column + ord('A') - 1) + "3" ] = 0
                 file.save("record.xlsx")
@@ -286,9 +311,10 @@ def update_charts() -> None:
             else:
                 v.points += v.today
             v.lates = v.lates - (v.late and 1 or 0)
-            record[ chr(v.column + ord('A') - 1) + str(day + 5) ] = v.points
+            record[ chr(v.column + ord('A') - 1) + str(day + blanks) ] = v.points
             record[ chr(v.column + ord('A') - 1) + "2" ] = v.lates
             record[ chr(v.column + ord('A') - 1) + "3" ] = v.last_late and 1 or 0
+            record[ chr(v.column + ord('A') - 1) + "4" ] = v.streak
             record[ days_cell ] = day
         file.save("record.xlsx")
         for v in users.values():
