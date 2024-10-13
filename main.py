@@ -109,7 +109,7 @@ def get_response(input: str, message: Message) -> str:
                 if not user.late and user.points >= min + 30:
                     if user.streak > 0:
                         s += "Melody is among us! -" + str(user.streak) + " points!\n"
-                    a -= user.streak
+                    user.today -= user.streak
                     user.streak += 1
 
             #Night stalker
