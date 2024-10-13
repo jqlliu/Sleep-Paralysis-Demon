@@ -75,6 +75,51 @@ interval: int = 30 * 60
 done: int = 0
 stalk_time: int = 60*90
 
+def calculate_points(user: Person, done: int, name: str, seconds: int) -> tuple[int, str, int]:
+    min:int = -1
+    two: int = -1
+    for v in users.values():
+        if v.points <= min or min == -1:
+            min = v.points
+            two = min
+    r: int = 0
+    x: int = 0
+    s = ""
+    s += name + " was #" + str(done) + "!\n"
+    #Night crawler
+    if seconds >= night_crawler and seconds < four_am and not user.late:
+        a = int((seconds - night_crawler)/(interval)) + 1
+        m = 1
+        if user.points == min and two - min >= 5:
+            m = 2
+            s += "Night hunter hunts down first place for an extra " + str(a) + " points!\n"
+        r += a * m
+        s += "Night crawler attacked for " + str(a) + " points!\n"
+        if user.points >= min + 30:
+            x = -1
+    else:
+        if not user.late and user.points >= min + 30:
+            if user.streak > 0:
+                s += "Melody is among us! -" + str(user.streak) + " points!\n"
+            r -= user.streak
+            x = 1
+
+    #Night stalker
+    if user.stalked and seconds >= night_crawler - stalk_time and seconds < four_am and not user.hide  and not user.late:
+        r += 1
+        s += "Night stalker attacked for 1 point!\n"
+    #Symphony
+    if user.points >= min + 20 and (done == 1 or done == 2):
+        r -= 1
+        s += "Symphony kicked in! -1 point\n"
+    #Requium
+    if user.points >= min + 15 and done == 1:
+        r -= 1
+        s += "Requium is active! -1 point\n"
+    s = name + " has slept with " + str(user.today) + " points!\n" + s
+    return (r, s, x)
+
+
 def get_response(input: str, message: Message) -> str:
     name: str = message.author.name
     input = str.lower(input)
@@ -82,56 +127,17 @@ def get_response(input: str, message: Message) -> str:
     user: Person = users[name]
     global done
     if user != None:
-        min:int = -1
-        two: int = -1
-        for v in users.values():
-            if v.points <= min or min == -1:
-                min = v.points
-                two = min
         #Gning
         if input == "gn" and user.today == -10:
-            s = ""
-            user.today = int(done)
             done += 1
-            s += name + " was #" + str(done) + "!\n"
-            #Night crawler
-            if seconds >= night_crawler and seconds < four_am and not user.late:
-                a = int((seconds - night_crawler)/(interval)) + 1
-                m = 1
-                if user.points == min and two - min >= 5:
-                    m = 2
-                    s += "Night hunter hunts down first place for an extra " + str(a) + " points!\n"
-                user.today += a * m
-                s += "Night crawler attacked for " + str(a) + " points!\n"
-                if user.points >= min + 30:
-                    user.streak = 0
-            else:
-                if not user.late and user.points >= min + 30:
-                    if user.streak > 0:
-                        s += "Melody is among us! -" + str(user.streak) + " points!\n"
-                    user.today -= user.streak
-                    user.streak += 1
-
-            #Night stalker
-            if user.stalked and seconds >= night_crawler - stalk_time and seconds < four_am and not user.hide  and not user.late:
-                user.today += 1
-                s += "Night stalker attacked for 1 point!\n"
-            #Symphony
-            if user.points >= min + 20 and (done == 1 or done == 2):
-                user.today -= 1
-                s += "Symphony kicked in! -1 point\n"
-            #Requium
-            if user.points >= min + 15 and done == 1:
-                user.today -= 1
-                s += "Requium is active! -1 point\n"
-            s = name + " has slept with " + str(user.today) + " points!\n" + s
-            
-
-            #Requium
-            if user.points >= min + 15 and done == 1:
-                user.today -= 1
-                s += "Requium kicked in! -1 point\n"
-            s = name + " has slept with " + str(user.today) + " points!\n" + s
+            user.place = done
+            a = calculate_points(user, done, name)
+            user.today = a[0]
+            s = a[1]
+            if a[2] == 1 :
+                user.streak += 1
+            elif a[2] == -1:
+                user.streak = 0
             return s
 
         if input == "gn" and user.today != -10:
@@ -172,18 +178,14 @@ def get_response(input: str, message: Message) -> str:
             t = input[5:]
             if str.isdigit(t[0:2]) and str.isdigit(t[3:5]):
                 t1 = (int(t[0:2]) * 60 * 60 + int(t[3:5])*60)
-                a = -6
-                if t1 >= night_crawler and t1 < four_am:
-                    a += int((t1 - night_crawler)/interval) + 1
-
-                if user.stalked and t1 >= night_crawler - stalk_time and t1 < four_am:
-                    a += 1
+                a = calculate_points(user, 4, "", t1)[0]
+                a -= 11
                 user.last_late = False
                 record[ chr(user.column + ord('A') - 1) + str(day + blanks) ] = user.points + a
                 user.points = user.points + a
                 record[ chr(user.column + ord('A') - 1) + "3" ] = 0
                 file.save("record.xlsx")
-                return name + " has signaled their correct sleep time. Their points was adjusted by " + str(a);
+                return name + " has signaled their correct sleep time. Their points was adjusted by " + str(a)
         if input[:4] == "fill" and not user.last_late:
             return "You wern't late last night. Go drink sulfuric acid"
         #List stats
@@ -224,6 +226,11 @@ def deleted(input: str, message: Message) -> str:
         if input == ";gn" and user.today != -10:
             user.today = -10
             done -= 1
+            for i, v in users.items():
+                if v.place > user.place:
+                    v.points -= 1
+                    v.place -= 1
+            user.place = 0
             return name + " revoked their gn! That fool. "
     return "You have killed me"
 
@@ -307,7 +314,7 @@ def update_charts() -> None:
             if v.today == -10:
                 v.points += 11
                 v.last_late = True
-                v.hide = False
+                v.streak = 0
             else:
                 v.points += v.today
             v.lates = v.lates - (v.late and 1 or 0)
@@ -320,6 +327,8 @@ def update_charts() -> None:
         for v in users.values():
             v.today = -10
             v.late = False
+            v.hide = False
+            v.place = 0
         print("update successful")
     
 def reset_charts() -> None:
@@ -336,8 +345,8 @@ async def warn_night() -> None:
             s = "NIGHT CRAWLERS HERE IN 10 MINUTE. GET AWAY TO SAFETY:"
             for i, v in users.items():
                 if v.today == -10:
-                    a = client.get_guild(1171158336864010330).get_member_named().mention
-                    s += " " + a
+                    a = str(client.get_guild(1171158336864010330).get_member_named(i).id)
+                    s += " <@{a}>\n"
             await send(s)
         except Exception as e:
             print("ERROR")
@@ -351,7 +360,7 @@ async def warn_stalk() -> None:
             for i, v in users.items():
                 if ( v.today == -10 or not v.ready ) and v.stalked :
                     a = client.get_guild(1171158336864010330).get_member_named(i).mention
-                    s += " " + a
+                    s += " <@{a}>\n"
             await send(s)
         except Exception as e:
             print("ERROR")

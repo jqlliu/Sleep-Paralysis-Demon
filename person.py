@@ -9,6 +9,7 @@ class Person:
     stalked: bool = False
     hide: bool = False
     streak: int = 0
+    place: int = 0
     def __init__(self, name: str, column: int) -> None:
         self.name = name
         self.column = column
