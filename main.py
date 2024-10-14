@@ -192,7 +192,7 @@ def get_response(input: str, message: Message) -> str:
         if input == "stats" or input == "stat":
             r = ""
             for v in users.values():
-                r += v.name + ": " + str(v.points) + " pts and " + str(v.lates) + " graces"   + "and a "  + str(v.streak) + " streak!\n" 
+                r += v.name + ": " + str(v.points) + " pts and " + str(v.lates) + " graces and a "  + str(v.streak) + " streak!\n" 
             return r
         #Make exception
         if input[:6] == "except":
