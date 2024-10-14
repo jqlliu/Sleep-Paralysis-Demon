@@ -131,7 +131,7 @@ def get_response(input: str, message: Message) -> str:
         if input == "gn" and user.today == -10:
             done += 1
             user.place = done
-            a = calculate_points(user, done, name)
+            a = calculate_points(user, done, name, seconds)
             user.today = a[0]
             s = a[1]
             if a[2] == 1 :
