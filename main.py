@@ -82,7 +82,7 @@ def calculate_points(user: Person, done: int, name: str, seconds: int) -> tuple[
         if v.points <= min or min == -1:
             min = v.points
             two = min
-    r: int = 0
+    r: int = done
     x: int = 0
     s = ""
     s += name + " was #" + str(done) + "!\n"
@@ -116,7 +116,7 @@ def calculate_points(user: Person, done: int, name: str, seconds: int) -> tuple[
     if user.points >= min + 15 and done == 1:
         r -= 1
         s += "Requium is active! -1 point\n"
-    s = name + " has slept with " + str(user.today) + " points!\n" + s
+    s = name + " has slept with " + str(r) + " points!\n" + s
     return (r, s, x)
 
 
