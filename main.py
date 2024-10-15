@@ -131,7 +131,7 @@ def get_response(input: str, message: Message) -> str:
         if input == "gn" and user.today == -10:
             done += 1
             user.place = done
-            a = calculate_points(user, done, name, seconds)
+            a = calculate_points(user, done - 1, name, seconds)
             user.today = a[0]
             s = a[1]
             if a[2] == 1 :
@@ -177,7 +177,7 @@ def get_response(input: str, message: Message) -> str:
         if input[:4] == "fill" and user.last_late:
             t = input[5:]
             if str.isdigit(t[0:2]) and str.isdigit(t[3:5]):
-                t1 = (int(t[0:2]) * 60 * 60 + int(t[3:5])*60)
+                t1 = (int(t[0:2]) * 60 * 60 + int(t[3:5])*60) + 4 * 60 * 60
                 a = calculate_points(user, 4, "", t1)[0]
                 a -= 11
                 user.last_late = False
