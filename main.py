@@ -82,7 +82,7 @@ def calculate_points(user: Person, done: int, name: str, seconds: int) -> tuple[
         if v.points <= min or min == -1:
             min = v.points
             two = min
-    r: int = done
+    r: int = done - 1
     x: int = 0
     s = ""
     s += name + " was #" + str(done) + "!\n"
@@ -131,7 +131,7 @@ def get_response(input: str, message: Message) -> str:
         if input == "gn" and user.today == -10:
             done += 1
             user.place = done
-            a = calculate_points(user, done - 1, name, seconds)
+            a = calculate_points(user, done, name, seconds)
             user.today = a[0]
             s = a[1]
             if a[2] == 1 :
@@ -178,7 +178,7 @@ def get_response(input: str, message: Message) -> str:
             t = input[5:]
             if str.isdigit(t[0:2]) and str.isdigit(t[3:5]):
                 t1 = (int(t[0:2]) * 60 * 60 + int(t[3:5])*60) + 4 * 60 * 60
-                a = calculate_points(user, 4, "", t1)[0]
+                a = calculate_points(user, 5, "", t1)[0]
                 a -= 11
                 user.last_late = False
                 record[ chr(user.column + ord('A') - 1) + str(day + blanks) ] = user.points + a
