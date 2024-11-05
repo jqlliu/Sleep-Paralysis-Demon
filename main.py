@@ -210,7 +210,6 @@ def get_response(input: str, message: Message) -> str:
             t = input[6:]
             t1 = t.split(":")
             if len(t1) == 2 and str.isdigit(t1[0]) and str.isdigit(t1[1]):
-                global night_crawler
                 night_crawler = (int(t1[0] + 4) * 60 * 60 + int(t1[1])*60)%86400
                 return "DANGER: Night crawlers now attack at " + t + ". Prepare thyself!"
             else:
