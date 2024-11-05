@@ -69,7 +69,7 @@ client: Client = Client(intents=intents)
 
 #responces
 print("Start")
-night_crawler: int = ((0 + 4) * 60 * 60 + 30 * 60)% 86400
+night_crawler: int = ((1 + 4) * 60 * 60 + 30 * 60)% 86400
 four_am: int = ((4 + 4) * 60 * 60)% 86400
 interval: int = 30 * 60
 done: int = 0
@@ -210,7 +210,8 @@ def get_response(input: str, message: Message) -> str:
             t = input[6:]
             t1 = t.split(":")
             if len(t1) == 2 and str.isdigit(t1[0]) and str.isdigit(t1[1]):
-                t1 = (int(t1[0] + 4) * 60 * 60 + int(t1[1])*60)%86400
+                global night_crawler
+                night_crawler = (int(t1[0] + 4) * 60 * 60 + int(t1[1])*60)%86400
                 return "DANGER: Night crawlers now attack at " + t + ". Prepare thyself!"
             else:
                 return "STINKY"
@@ -359,13 +360,13 @@ async def warn_stalk() -> None:
             s = "NIGHT STALKERS HERE. HIDE. NOW:"
             for i, v in users.items():
                 if ( v.today == -10 or not v.ready ) and v.stalked :
-                    a = client.get_guild(1171158336864010330).get_member_named(i).mention
+                    a = str(client.get_guild(1171158336864010330).get_member_named(i).id)
                     s += " <@{a}>\n"
             await send(s)
         except Exception as e:
             print("ERROR")
 
-funnies = ["BANANA", "LEMON", "You have 5 days left to live"]
+funnies = ["BANANA", "LEMON", "You have 5 days left to live", "PINEAPPLE", "DON'T LOOK BEHIND YOU"]
 
 async def funny() -> None:
         try:
