@@ -69,7 +69,12 @@ client: Client = Client(intents=intents)
 
 #responces
 print("Start")
-night_crawler: int = ((1 + 4) * 60 * 60 + 30 * 60)% 86400
+daylight: int = 1
+
+def to_time(hour: int = 0, minute: int = 0, second: int = 0):
+    return ((hour + 4 + daylight)*3600 + minute * 60 + second)%86400
+
+night_crawler: int = ((daylight + 4) * 60 * 60 + 30 * 60)% 86400
 four_am: int = ((4 + 4) * 60 * 60)% 86400
 interval: int = 30 * 60
 done: int = 0
@@ -119,13 +124,14 @@ def calculate_points(user: Person, done: int, name: str, seconds: int) -> tuple[
     s = name + " has slept with " + str(r) + " points!\n" + s
     return (r, s, x)
 
-
 def get_response(input: str, message: Message) -> str:
     name: str = message.author.name
     input = str.lower(input)
     seconds: int = int(time.time()) % 86400
     user: Person = users[name]
+    global night_crawler
     global done
+    global daylight
     if user != None:
         #Gning
         if input == "gn" and user.today == -10:
@@ -133,6 +139,7 @@ def get_response(input: str, message: Message) -> str:
             user.place = done
             a = calculate_points(user, done, name, seconds)
             user.today = a[0]
+            user.time = seconds
             s = a[1]
             if a[2] == 1 :
                 user.streak += 1
@@ -172,6 +179,13 @@ def get_response(input: str, message: Message) -> str:
         
         if input == "file":
             return "!!FILE!!"
+
+        if input == "daylight" :
+            if daylight == 1:
+                daylight = 0
+                return "The sun rests"
+            daylight = 1
+            return "The sun burns"
 
         #Fill in time for yesterday
         if input[:4] == "fill" and user.last_late:
