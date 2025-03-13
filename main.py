@@ -6,7 +6,7 @@ from discord.ext import tasks
 from person import Person
 
 from datetime import datetime
-
+import functools
 import time
 import threading
 
@@ -23,22 +23,25 @@ port = 8000
 soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
+testing = False
+
 def connect():
-    while True: 
-        # Establish connection with client. 
-        c, addr = soc.accept()
+    if not testing:
+        while True: 
+            # Establish connection with client. 
+            c, addr = soc.accept()
 
 
-try: 
-    print("LISTENING")
-    soc.bind((host, port))
-except socket.error as message:
-    print("ERR")
+if not testing:
+    try: 
+            print("LISTENING")
+            soc.bind((host, port))
+    except socket.error as message:
+        print("ERR")
 
-soc.listen(5)
-#import asyncio
-thread = threading.Thread(target=connect)
-thread.start()
+    soc.listen(5)
+    thread = threading.Thread(target=connect)
+    thread.start()
 
 days_cell: str = "M1"
 #Open files
@@ -86,23 +89,21 @@ def to_time(t: int) -> str:
     minutes = (t % 3600) // 60
     seconds = t % 60
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-#How many minutes late
+#How many minutes late t1 is
 def minutes_late(t1: int | str, t2: int | str) -> int:
-    t1 = to_dlt(to_number(t1)) if isinstance(t1, str) else to_dlt(t1)
-    t2 = to_dlt(to_number(t2)) if isinstance(t2, str) else to_dlt(t2)
+    t1 = to_number(t1) if isinstance(t1, str) else t1
+    t2 = to_number(t2) if isinstance(t2, str) else t2
     t1 = (t1 - 18000) % 86400
     t2 = (t2 - 18000) % 86400
-    if t2 <= t1:
+    if t1 <= t2:
         return -1
-    return math.ceil((t2 - t1) / 60)
+    return math.ceil((t1 - t2) / 60)
 
 def slept(user: Person):
     return get(user, "today") == -10
 
-
 def get_day() -> int:
     return int(info[ days_cell ].value)
-#functions
 
 def get_points(user: Person, day: int = get_day() - 1) -> int | bool:
     if point[cell(user.column, day)].value:
@@ -113,16 +114,20 @@ def set_points(user: Person, points: int, day: int = get_day()) -> None:
     point[cell(user.column, day)].value = str(points)
     save()
 
-def get_time(user: Person, day: int = get_day()) -> tuple[int, bool]:
-    print(track[cell(user.column, day)].value)
-    if track[cell(user.column, day)].value == "---": return (-10, False) 
-    if track[cell(user.column, day)].value[-1:] == "f":
-        return (to_number(track[cell(user.column, day)].value[:-2]), True)
-    return (to_number(track[cell(user.column, day)].value), False)
+def get_time(user: Person, day: int = get_day()) -> tuple[int, bool, bool]:
+    if track[cell(user.column, day)].value == "---": return (-10, False, False) 
+    c = track[cell(user.column, day)].value[-1:]
+    if c == "f":
+        return (to_number(track[cell(user.column, day)].value[:-2]), True, False)
+    if c == "l":
+        return (to_number(track[cell(user.column, day)].value[:-2]), False, True)
+    return (to_number(track[cell(user.column, day)].value), False, False)
 
 def set_time(user: Person, val: str | int, fill = False, day: int = get_day()) -> tuple[int, bool]:
     if fill:
         track[cell(user.column, day)].value = to_time(val) + " f"
+    elif user.late:
+        track[cell(user.column, day)].value = to_time(val) + " l"
     else:
         track[cell(user.column, day)].value = to_time(val)
 #Get some info of a user
@@ -145,6 +150,9 @@ def sum_points(user: Person) -> int:
         total += get_points(user, i)
     return total
 
+def broken_streak(returns: tuple[int, bool]) -> bool:
+    return True if returns[1] or returns[0] == -10 else False
+
 def setup() -> None:
     for v in users.values():
         put(v, "points", sum_points(v))
@@ -153,15 +161,15 @@ def setup() -> None:
 
 
 night_crawler: str = "00:30:00"
-four_am: str = "05:00:00"
+dead_time: str = "05:00:00"
 interval: int = 15 * 60
 done: int = 0
 stalk_time: int = 60*90
 default_points = 50
 
 def on_time(t1: int | str, t2: int | str) -> bool:
-    t1 = to_dlt(to_number(t1)) if isinstance(t1, str) else to_dlt(t1)
-    t2 = to_dlt(to_number(t2)) if isinstance(t2, str) else to_dlt(t2)
+    t1 = to_number(t1) if isinstance(t1, str) else t1
+    t2 = to_number(t2) if isinstance(t2, str) else t2
     
     t1 = (t1 - 18000) % 86400
     t2 = (t2 - 18000) % 86400
@@ -176,24 +184,21 @@ def to_dlt(t: str | int) -> int:
     t = to_number(t) if isinstance(t, str) else t
     month, day = current_month_day()
     dst = (month > 3 and month < 11) or (month == 3 and day >= 8) or (month == 11 and day < 8)
-    return t + 3600 if dst else t
+    return t if dst else t - 3600
 
-def calculate_min() -> tuple[int, int]:
+def calculate_min() -> int:
     min: int = -1
-    two: int = -1
     for v in users.values():
         points = get(v, "points")
         if points <= min or min == -1:
             min = points
-            two = min
-    return (min, two)
+    return min
 
 #point managment
 
-def calculate_points(user: Person, done: int, name: str, seconds: int) -> tuple[int, str, int]:
+def calculate_points(user: Person, done: int, name: str, seconds: int, late: bool = False) -> tuple[int, str, int]:
     #Calculate first and second place
-    min, two = calculate_min()
-
+    min = calculate_min()
     #points to add
     points_add: int = 8 * (done - 1)
     #wtf does this do
@@ -201,63 +206,102 @@ def calculate_points(user: Person, done: int, name: str, seconds: int) -> tuple[
     #Message
     message = ""
     message += name + " was #" + str(done) + "!\n"
-
+    if user.late: 
+        late = True
     #info
     points = get(user, "points")
     streak = get(user, "streak")
-
     #Night crawler
-    if on_time(seconds, to_dlt(night_crawler)) and on_time(to_dlt(four_am), seconds) and not user.late:
-        a = minutes_late(seconds, to_dlt(four_am)) % 10
-        m = 1
-        #Night hunter
-        if points == min and two - min >= 5:
-            m = 2
-            message += "Night hunter hunts down first place for an extra " + str(a) + " points!\n"
-        
-        points_add += a * m
+    if on_time(seconds, to_dlt(night_crawler)) and not late:
+        a = minutes_late(seconds, to_dlt(night_crawler)) // 10
+        points_add += a
         message += "Night crawler attacked for " + str(a) + " points!\n"
-        if points >= min + 30:
+        if points >= min + 80:
             late_status = -1
+            message += name + "'s streak falls...\n"
     else:
-        if not user.late and points >= min + 30:
+        if points >= min + 80:
             if streak > 0:
-                message += "Melody is among us! -" + str(user.streak) + " points!\n"
-            points_add -= user.streak * 3
+                message += "Melody is among us! -" + str(streak * 3) + " points!\n"
+            points_add -= streak * 6
             late_status = 1
+            message += name + "'s streak prevails to " + str(streak + 1) + "\n"
 
     #Symphony
-    if points >= min + 20 and (done == 1 or done == 2):
+    if points >= min + 50 and (done == 1 or done == 2):
         points_add -= 8
-        message += "Symphony kicked in! -3 point\n"
+        message += "Symphony kicked in! -10 point\n"
     #Requium
-    if points >= min + 15 and done == 1:
+    if points >= min + 35 and done == 1:
         points_add -= 10
-        message += "Requium is active! -5 point\n"
+        message += "Requium is active! -20 point\n"
     message = name + " has slept with " + str(points_add) + " points!\n" + message
     return (points_add, message, late_status)
 
+def count_streak(user: Person, a: int):
+    if a == 1 :
+            put(user, "streak", get(user, "streak") + 1)
+    elif a == -1:
+            put(user, "streak", 0)
 
+def is_late(t1: tuple[Person, int], t2: tuple[Person, int]) -> int:
+    return on_time(t1[1], t2[1]) - on_time(t2[1], t1[1])
+
+comp = functools.cmp_to_key(is_late)
 
 def flatten_points(day: int = get_day()) -> None:
+    print("A NEW DAY!\n")
     places: list[tuple[Person, int]] = []
+    others: list[tuple[Person, int]] = []
     for v in users.values():
-        places.append((v, get_time(v, day)[0]))
+        t = get_time(v, day)
+        if t[2]:
+            v.late = True
+        if t[0] != -10 and not t[1]:
+            places.append((v, t[0]))
+        else:
+            others.append((v, t[0]))
 
-    places.sort(key=lambda a: a[1])
-    for i in range(0, 5):
-        set_points(places[i][0], calculate_points(places[i][0], i + 1, "", get_time(places[i][0], day)[0])[0], day)
+    places.sort(key=comp)
+    for i in range(0, len(places)):
+        pts = calculate_points(places[i][0], i + 1, "", places[i][1])
+        set_points(places[i][0], pts[0], day)
+        count_streak(places[i][0], pts[2])
+        put(places[i][0], "points", get(places[i][0], "points") + pts[0])
+        places[i][0].late = False
+    for i in range(0, len(others)):
+        if others[i][1] == -10:
+            #print("DEAD: " +others[i][0].name)
+            set_points(others[i][0], default_points, day)
+            put(others[i][0], "points", get(others[i][0], "points") + default_points)
+            count_streak(others[i][0], -1)
+        else:
+            #print("FILL: " +others[i][0].name)
+            pts = calculate_points(others[i][0], len(others) + 1, "", others[i][1])
+            set_points(others[i][0], pts[0], day)
+            put(others[i][0], "points", get(others[i][0], "points") + pts[0])
+            count_streak(others[i][0], -1)
+        others[i][0].late = False
     
 
 def flatten_all():
-    for i in range(1, get_day() + 1):
+    
+    for v in users.values():
+        put(v, "streak", 0)
+        put(v, "points", 0)
+    for i in range(1, get_day()):
         flatten_points(i)
     save()
 
 
 #initial setup
 load_dotenv()
-flatten_all()
+if not testing:
+    flatten_all()
+
+for v in users.values():
+    track[cell(v.column, get_day())].value = "---"
+
 setup()
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
 #setup
@@ -267,6 +311,8 @@ client: Client = Client(intents=intents)
 
 #responces
 print("Listening")
+save()
+
 
 def get_response(input: str, message: Message) -> str:
     name: str = message.author.name
@@ -287,10 +333,7 @@ def get_response(input: str, message: Message) -> str:
             set_time(user, seconds)
 
             s = a[1]
-            if a[2] == 1 :
-                put(user, "streak", get(user, "streak") + 1)
-            elif a[2] == -1:
-                put(user, "streak", 0)
+            count_streak(user, a[2])
             return s
 
         if input == "gn" and get_points(user, get_day() + 1):
@@ -312,8 +355,8 @@ def get_response(input: str, message: Message) -> str:
             return "!!FILE!!"
 
         #Fill in time for yesterday
-        if input[:4] == "fill" and get(user, "fill") == 1:
-            
+        if input[:4] == "fill" and get_time(user, get_day() - 1)[0] == -10 and to_number(input[5:]):
+            set_time(user, input[5:], True, get_day() - 1)
             return name + " has signaled their correct sleep time. Their points was adjusted by " + str(a)
         if input[:4] == "fill" and not user.last_late:
             return "You wern't late last night. Go drink sulfuric acid"
@@ -321,7 +364,7 @@ def get_response(input: str, message: Message) -> str:
         if input == "stats" or input == "stat":
             r = ""
             for v in users.values():
-                r += v.name + ": " + str(v.points) + " pts and " + str(v.lates) + " graces and a "  + str(v.streak) + " streak!\n" 
+                r += v.name + ": " + str(get(v, "points")) + " pts and " + str(get(v, "graces")) + " graces and a "  + str(get(v, "streak")) + " streak!\n" 
             return r
         #Make exception
         if input[:6] == "except":
@@ -330,7 +373,8 @@ def get_response(input: str, message: Message) -> str:
             if len(t) == 2 and (str.isdigit(t[1]) or str.isdigit(t[1][1:]) and t[1][0] == "-") and users[t[0]]:
                 n: str = t[0]
                 p: int = int(t[1])
-                users[n].points += p
+                put(users[n], "points", get(users[n], "points") + p)
+                set_points(users[n], get_points(v, get_day() - 1) + p, get_day() - 1)
                 return n + " has been obliterated by " + name + " for " + str(p) + " points! "
             else:
                 return "Wrong parameters bozo"
@@ -440,6 +484,9 @@ def update_charts() -> None:
 
         for v in users.values():
             track[cell(v.column, get_day())].value = "---"
+            v.late = False
+            v.today = -10
+            put(v, "today", -10)
         print("update successful")
         
         save()
@@ -488,7 +535,7 @@ async def funny() -> None:
 @tasks.loop(seconds = 0.5)
 
 async def timer():
-    if int(time.time()) % 86400 > to_number(four_am) and int(time.time()) % 86400 < to_number(four_am) + 10 :
+    if int(time.time()) % 86400 > to_number(dead_time) and int(time.time()) % 86400 < to_number(dead_time) + 10 :
         update_charts()
     elif int(time.time()) % 86400 == to_number(night_crawler):
         await warn_night()
@@ -502,7 +549,8 @@ async def timer():
 #timer_thread.start()
 #asyncio.run(timer())
 def main() -> None:
-    client.run(token = TOKEN)
+    if not testing:
+        client.run(token = TOKEN)
     
 if __name__ == '__main__':
    main()
