@@ -72,7 +72,13 @@ key_id: Dict[str, int] = {
 }
 
 day: int = int(info[ days_cell ].value)
-
+#convert time zones
+def to_standard(t: str | int) -> int:
+    t = to_number(t) if isinstance(t, str) else t
+    return (t + 18000) % 86400
+def to_est(t: str | int) -> int:
+    t = to_number(t) if isinstance(t, str) else t
+    return (t - 18000) % 86400
 #simple functions
 def save() -> None:
     file.save("record.xlsx")
@@ -93,8 +99,8 @@ def to_time(t: int) -> str:
 def minutes_late(t1: int | str, t2: int | str) -> int:
     t1 = to_number(t1) if isinstance(t1, str) else t1
     t2 = to_number(t2) if isinstance(t2, str) else t2
-    t1 = (t1 - 18000) % 86400
-    t2 = (t2 - 18000) % 86400
+    t1 = (t1 - 36000) % 86400
+    t2 = (t2 - 36000) % 86400
     if t1 <= t2:
         return -1
     return math.ceil((t1 - t2) / 60)
@@ -118,18 +124,20 @@ def get_time(user: Person, day: int = get_day()) -> tuple[int, bool, bool]:
     if track[cell(user.column, day)].value == "---": return (-10, False, False) 
     c = track[cell(user.column, day)].value[-1:]
     if c == "f":
-        return (to_number(track[cell(user.column, day)].value[:-2]), True, False)
+        return (to_standard(to_number(track[cell(user.column, day)].value[:-2])), True, False)
     if c == "l":
-        return (to_number(track[cell(user.column, day)].value[:-2]), False, True)
-    return (to_number(track[cell(user.column, day)].value), False, False)
+        return (to_standard(to_number(track[cell(user.column, day)].value[:-2])), False, True)
+    return (to_standard(to_number(track[cell(user.column, day)].value)), False, False)
 
 def set_time(user: Person, val: str | int, fill = False, day: int = get_day()) -> tuple[int, bool]:
+    if val == "":
+        track[cell(user.column, day)].value = "---"
     if fill:
-        track[cell(user.column, day)].value = to_time(val) + " f"
+        track[cell(user.column, day)].value = to_time(to_est(val)) + " f"
     elif user.late:
-        track[cell(user.column, day)].value = to_time(val) + " l"
+        track[cell(user.column, day)].value = to_time(to_est(val)) + " l"
     else:
-        track[cell(user.column, day)].value = to_time(val)
+        track[cell(user.column, day)].value = to_time(to_est(val))
 #Get some info of a user
 def get(user: Person, key: str) -> int | str:
     c = info[cell(user.column, key_id[key])]
@@ -137,6 +145,7 @@ def get(user: Person, key: str) -> int | str:
         return int(c.value)
     except:
         return c.value
+
 
 #put some info of a user
 def put(user: Person, key: str, value: int | str) -> None:
@@ -171,8 +180,8 @@ def on_time(t1: int | str, t2: int | str) -> bool:
     t1 = to_number(t1) if isinstance(t1, str) else t1
     t2 = to_number(t2) if isinstance(t2, str) else t2
     
-    t1 = (t1 - 18000) % 86400
-    t2 = (t2 - 18000) % 86400
+    t1 = (t1 - 36000) % 86400
+    t2 = (t2 - 36000) % 86400
     
     return t1 > t2
 
@@ -212,8 +221,8 @@ def calculate_points(user: Person, done: int, name: str, seconds: int, late: boo
     points = get(user, "points")
     streak = get(user, "streak")
     #Night crawler
-    if on_time(seconds, to_dlt(night_crawler)) and not late:
-        a = minutes_late(seconds, to_dlt(night_crawler)) // 10
+    if on_time(seconds, to_dlt(to_standard(night_crawler))) and not late:
+        a = minutes_late(seconds, to_dlt(to_standard(night_crawler))) // 10
         points_add += a
         message += "Night crawler attacked for " + str(a) + " points!\n"
         if points >= min + 80:
@@ -324,7 +333,7 @@ def get_response(input: str, message: Message) -> str:
     global daylight
     if user != None:
         #Gning
-        if input == "gn" and user.today == -10:
+        if input == "gn" and not slept(user):
             done += 1
             user.place = done
             a = calculate_points(user, done, name, seconds)
@@ -336,20 +345,13 @@ def get_response(input: str, message: Message) -> str:
             count_streak(user, a[2])
             return s
 
-        if input == "gn" and get_points(user, get_day() + 1):
+        if input == "gn" and slept(user):
             return "You already gn'd fool"
 
         #Late ticket
         if input == "late":
             user.late = True
             return name + " uses a saving grace. Night crawlers will not affect them"
-        #Stalk
-        if input == "stalk":
-            user.stalked = not user.stalked
-            if user.stalked:
-                return name + " is being stalked during night! "
-            else:
-                return name + "'s trail is cold..."
         
         if input == "file":
             return "!!FILE!!"
