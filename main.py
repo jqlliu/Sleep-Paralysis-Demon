@@ -106,7 +106,7 @@ def minutes_late(t1: int | str, t2: int | str) -> int:
     return math.ceil((t1 - t2) / 60)
 
 def slept(user: Person):
-    return get(user, "today") == -10
+    return get(user, "today") != -10
 
 def get_day() -> int:
     return int(info[ days_cell ].value)
@@ -238,11 +238,11 @@ def calculate_points(user: Person, done: int, name: str, seconds: int, late: boo
 
     #Symphony
     if points >= min + 50 and (done == 1 or done == 2):
-        points_add -= 8
+        points_add -= 10
         message += "Symphony kicked in! -10 point\n"
     #Requium
     if points >= min + 35 and done == 1:
-        points_add -= 10
+        points_add -= 20
         message += "Requium is active! -20 point\n"
     message = name + " has slept with " + str(points_add) + " points!\n" + message
     return (points_add, message, late_status)
