@@ -27,8 +27,10 @@ soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 testing = False
 if not testing:
     class RequestHandler(BaseHTTPRequestHandler):
+        print("RECIEVED")
         def do_POST(self):
             if self.path == "/":
+
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(b"OK")
