@@ -33,8 +33,6 @@ if not testing:
                 self.end_headers()
                 self.wfile.write(b"OK")
 
-    server = HTTPServer(("0.0.0.0", 8000), RequestHandler)
-    server.serve_forever()
 
 def connect():
     if not testing:
@@ -558,6 +556,10 @@ async def timer():
     if random.randint(0, 500000) == 3:
         await funny()
 
+if not testing:
+    print("Server up")
+    server = HTTPServer(("0.0.0.0", 8000), RequestHandler)
+    server.serve_forever()
 
 #timer_thread = threading.Thread(target=wrap_timer)
 #timer_thread.start()
