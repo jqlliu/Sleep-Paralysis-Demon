@@ -106,7 +106,7 @@ def minutes_late(t1: int | str, t2: int | str) -> int:
     return math.ceil((t1 - t2) / 60)
 
 def slept(user: Person):
-    return get(user, "today") != -10
+    return get(user, "today") == -10
 
 def get_day() -> int:
     return int(info[ days_cell ].value)
