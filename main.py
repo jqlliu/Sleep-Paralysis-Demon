@@ -17,6 +17,7 @@ import socket
 import threading
 
 import math
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 host = ""
 port = 8000
@@ -24,6 +25,16 @@ soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
 testing = False
+if not testing:
+    class RequestHandler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            if self.path == "/":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"OK")
+
+    server = HTTPServer(("0.0.0.0", 8000), RequestHandler)
+    server.serve_forever()
 
 def connect():
     if not testing:
@@ -132,7 +143,7 @@ def get_time(user: Person, day: int = get_day()) -> tuple[int, bool, bool]:
 def set_time(user: Person, val: str | int, fill = False, day: int = get_day()) -> tuple[int, bool]:
     if val == "":
         track[cell(user.column, day)].value = "---"
-    if fill:
+    elif fill:
         track[cell(user.column, day)].value = to_time(to_est(val)) + " f"
     elif user.late:
         track[cell(user.column, day)].value = to_time(to_est(val)) + " l"
