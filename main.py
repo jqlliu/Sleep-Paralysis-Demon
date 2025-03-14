@@ -559,9 +559,10 @@ async def timer():
         await funny()
 
 if not testing:
-    print("Server up")
-    server = HTTPServer(("0.0.0.0", 8000), RequestHandler)
-    server.serve_forever()
+    #print("Server up")
+    #server = HTTPServer(("0.0.0.0", 8000), RequestHandler)
+    #server.serve_forever()
+    pass
 
 #timer_thread = threading.Thread(target=wrap_timer)
 #timer_thread.start()
