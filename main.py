@@ -27,15 +27,15 @@ soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
 testing = False
-if not testing:
-    class RequestHandler(BaseHTTPRequestHandler):
-        print("RECIEVED")
-        def do_POST(self):
-            if self.path == "/":
+# if not testing:
+#     class RequestHandler(BaseHTTPRequestHandler):
+#         print("RECIEVED")
+#         def do_POST(self):
+#             if self.path == "/":
 
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"OK")
+#                 self.send_response(200)
+#                 self.end_headers()
+#                 self.wfile.write(b"OK")
 
 
 def connect():
@@ -568,6 +568,31 @@ if not testing:
 
 
 
+def worker():
+    print("SERVER UP")
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+
+        def do_GET(self):
+            try:
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+            except:
+                self.send_response(404)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b'404 - Not Found')
+                    
+    httpd = HTTPServer(('', 8000), SimpleHTTPRequestHandler)
+    httpd.serve_forever()
+thread = threading.Thread(target=worker)
+thread.start()
+thread.join()
+
+
+
+
 
 
 #timer_thread = threading.Thread(target=wrap_timer)
@@ -580,22 +605,3 @@ def main() -> None:
 if __name__ == '__main__':
    main()
 
-print("SERVER UP")
-from http.server import HTTPServer, BaseHTTPRequestHandler
-class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
-
-    def do_GET(self):
-        try:
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-        except:
-            self.send_response(404)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            self.wfile.write(b'404 - Not Found')
-
-
-
-httpd = HTTPServer(('', 8080), SimpleHTTPRequestHandler)
-httpd.serve_forever()
