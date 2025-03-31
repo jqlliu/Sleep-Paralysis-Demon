@@ -577,6 +577,7 @@ def worker():
             try:
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html')
+                print("RECIEVED")
                 self.end_headers()
             except:
                 self.send_response(404)
